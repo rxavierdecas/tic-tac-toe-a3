@@ -15,6 +15,7 @@ from tictactoe.graphics.shapes import AnimatedSymbol, GridRenderer
 from tictactoe.model.game_engine import GameEngine, GameState, MoveResult
 from tictactoe.model.player import Player
 from tictactoe.ui.scenes.base import Scene, draw_background
+from tictactoe.ui.scenes.game_over import MENU, REMATCH, GameOverPanel
 from tictactoe.ui.widgets import draw_text
 
 # Teclas 1–9 seguem o layout do teclado numérico (7 8 9 no topo, 1 2 3 embaixo).
@@ -48,6 +49,7 @@ class GameScene(Scene):
         self.symbols: dict[tuple[int, int], AnimatedSymbol] = {}
         self.win_effect: WinLineEffect | None = None
         self.end_timer = 0.0
+        self.game_over: GameOverPanel | None = None
         self.hover_cell: tuple[int, int] | None = None
         self.time = 0.0
         self._cell_layer = pygame.Surface(
@@ -60,6 +62,7 @@ class GameScene(Scene):
         self.particles.clear()
         self.win_effect = None
         self.end_timer = 0.0
+        self.game_over = None
 
     def restart_round(self) -> None:
         self.engine.restart()
@@ -77,6 +80,13 @@ class GameScene(Scene):
 
     # ------------------------------------------------------------------ entrada
     def handle_event(self, event) -> None:
+        if self.game_over is not None:
+            action = self.game_over.handle_event(event)
+            if action == REMATCH:
+                self.rematch()
+            elif action == MENU:
+                self.go_to_menu()
+            return
         if event.type == pygame.MOUSEMOTION:
             self.hover_cell = self.layout.cell_from_screen(event.pos)
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -137,6 +147,16 @@ class GameScene(Scene):
         self.particles.update(dt)
         if self.engine.is_over:
             self.end_timer += dt
+            if self.game_over is None and self._ready_for_game_over():
+                self.game_over = GameOverPanel(self.engine)
+        if self.game_over is not None:
+            self.game_over.update(dt)
+
+    def _ready_for_game_over(self) -> bool:
+        """Exibe o painel após o atraso e, na vitória, após o fechamento da linha."""
+        if self.end_timer < config.GAME_OVER_DELAY:
+            return False
+        return self.win_effect is None or (self.win_effect.closed and self.win_effect.shockwave.finished)
 
     def _last_symbol_finished(self) -> bool:
         last = self.engine.last_move
@@ -153,6 +173,8 @@ class GameScene(Scene):
                   center=(config.WINDOW_WIDTH // 2, config.WINDOW_HEIGHT - 22))
         if self.engine.state is GameState.PAUSED:
             self.draw_pause(surface)
+        if self.game_over is not None:
+            self.game_over.draw(surface)
 
     def draw_board(self, surface) -> None:
         x, y, w, h = self.layout.board_rect()
