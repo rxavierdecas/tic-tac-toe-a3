@@ -1,0 +1,10 @@
+[project]
+name = "tictactoe-a3"
+version = "1.0.0"
+description = "Jogo da Velha 3x3 para 2 jogadores com Pygame (A3 - Computação Gráfica, Grupo 01)"
+requires-python = ">=3.10"
+dependencies = ["pygame>=2.5"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
